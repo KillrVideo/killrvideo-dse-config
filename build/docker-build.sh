@@ -5,7 +5,7 @@ set -e
 . "`dirname $0`/VERSION"
 
 # Login if user/password present
-if [[ ! -z "$DOCKER_USER" ]] && [[ ! -z "$DOCKER_PASS" ]]; then
+if [ ! -z "$DOCKER_USER" ] && [ ! -z "$DOCKER_PASS" ]; then
   docker login -u $DOCKER_USER -p $DOCKER_PASS
 fi
 

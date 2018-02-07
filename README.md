@@ -6,7 +6,7 @@ Docker container to configure a [DataStax Enterprise][dse] cluster for use with 
 including single and multi-node clusters, with options as described below. Contains startup 
 scripts to bootstrap the CQL and DSE Search resources needed by the [KillrVideo][killrvideo] 
 application. It also registers the various services provided by DSE (Cassandra, Search and Graph) in
-<code>etcd</code> so they can be discovered by the various containers in the application.
+`etcd` so they can be discovered by the various containers in the application.
 Based on the official [DSE image][dse-docker] from the Docker Store.
 
 ## Configuration Options
@@ -15,14 +15,14 @@ This container supports several different options for configuration:
 
 ### DSE node location
 By default, this container assumes that DataStax Enterprise is being started in a Docker container
-as part of a <code>docker-compose</code> configuration. The value of the `KILLRVIDEO_DOCKER_IP` 
-environment variable is used to register DSE services in <code>etcd</code>. 
+as part of a `docker-compose` configuration. The value of the `KILLRVIDEO_DOCKER_IP` 
+environment variable is used to register DSE services in `etcd`. 
 
 If you instead wish to deploy KillrVideo with an existing external cluster, you can override this 
 behavior by setting the value of the `KILLRVIDEO_DSE_EXTERNAL_IP` environment variable to the location 
-of a node in the external cluster. (Don't forget to modify <code>docker-compose</code> files so that
+of a node in the external cluster. (Don't forget to modify `docker-compose` files so that
 you don't continue to run DSE in Docker. See the [KillrVideo Docker documentation page][docker-doc] 
-for more information) 
+for more information.) 
 
 ### Configuring replication strategies 
 KillrVideo may require keyspaces to be created with different replication strategies depending
@@ -30,10 +30,10 @@ on where it is deployed to use a single- or multi-node DSE cluster (i.e. for dev
 production deployments). 
 
 - By default, this container will create KillrVideo keyspaces for DSE Database (Cassandra) 
-and DSE Graph using the <code>SimpleStrategy</code> with a replication factor of 1.
+and DSE Graph using the `SimpleStrategy` with a replication factor of 1.
 - You can override the replication factor that will be used for the primary application Cassandra
 tables by setting the `KILLRVIDEO_CASSANDRA_REPLICATION` environment variable. Here's an example
-of how to set this variable in an <code>.env</code> file you use with <code>docker-compose</code>:
+of how to set this variable in an `.env` file you use with `docker-compose`:
 ```
 KILLRVIDEO_CASSANDRA_REPLICATION={'class' : 'NetworkTopologyStrategy', 'us-west-2-graph' : 3}
 ```
@@ -41,22 +41,27 @@ KILLRVIDEO_CASSANDRA_REPLICATION={'class' : 'NetworkTopologyStrategy', 'us-west-
 recommendation engine is implemented by setting the `KILLRVIDEO_GRAPH_REPLICATION` environment variable. 
 
 ### Enabling authentication and authorization
-This container can optionally create administrative and/or standard (application) roles:
+This container can optionally use administrative and/or standard (application) roles and even create the roles on 
+request:
 
-- Administrative role - if the environment variable `KILLRVIDEO_CREATE_ADMIN_USER` is set to true, 
+- Using an administrator role - if the environment variables `KILLRVIDEO_ADMIN_USERNAME` and
+`KILLRVIDEO_ADMIN_PASSWORD` are set, the provided values will be used as the credentials for configuration steps 
+requiring administrative privileges
+- Creating an administrator role - if the environment variable `KILLRVIDEO_CREATE_ADMIN_USER` is set to true, 
 an administrative role with the credentials specfied by the `KILLRVIDEO_ADMIN_USERNAME` and
 `KILLRVIDEO_ADMIN_PASSWORD` environment variables will be created, and the default admin user 
 (cassandra/cassandra) will be removed. This is particularly useful for desktop deployments.
-- Application role - if the environment variable `KILLRVIDEO_CREATE_DSE_USER` is set to true, 
-  a role with the credentials specfied by the `KILLRVIDEO_DSE_USERNAME` and
-  `KILLRVIDEO_DSE_PASSWORD` environment variables will be created. This role will be granted
-  permissions required by the KillrVideo application. The same username/password environment
-  variables be provided to clients (containers) in the KillrVideo ecosystem 
-  such as the web application and test data generator in order for them to authenticate
-  to DSE.
+- Using an application role - if the environment variables `KILLRVIDEO_DSE_USERNAME` and
+`KILLRVIDEO_DSE_PASSWORD` are set, the provided values will be used as the credentials for configuration steps 
+that don't require administrative privileges
+- Creating an application role - if the environment variable `KILLRVIDEO_CREATE_DSE_USER` is set to true, 
+a role with the credentials specfied by the `KILLRVIDEO_DSE_USERNAME` and `KILLRVIDEO_DSE_PASSWORD` environment 
+variables will be created. This role will be granted permissions required by the KillrVideo application. The same 
+username/password environment variables be provided to clients (containers) in the KillrVideo ecosystem such as the 
+web application and test data generator in order for them to authenticate to DSE.
 
 For additional information on running DSE nodes within Docker as part of a KillrVideo deployment,
-please see the Docker page
+please see the [KillrVideo Docker documentation page][docker-doc].
 
 ## Builds and Releases
 

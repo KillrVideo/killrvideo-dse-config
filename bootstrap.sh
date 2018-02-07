@@ -1,6 +1,5 @@
 #!/bin/bash
-# set -e
-set -x
+set -e
 
 # See if we've already completed bootstrapping
 if [ ! -f killrvideo_bootstrapped ]; then
@@ -46,6 +45,10 @@ if [ ! -f killrvideo_bootstrapped ]; then
     echo '=> Granting keyspace creation permissions'
     cqlsh $dse_ip 9042 -u $admin_user -p $admin_password -e "GRANT CREATE on ALL KEYSPACES to $KILLRVIDEO_DSE_USERNAME"
     cqlsh $dse_ip 9042 -u $admin_user -p $admin_password -e "GRANT ALL PERMISSIONS on ALL SEARCH INDICES to $KILLRVIDEO_DSE_USERNAME"
+  fi
+
+  # Use the provided username/password for subsequent non-admin operations
+  if [ ! -z "$KILLRVIDEO_DSE_USERNAME" ]; then
     dse_user=$KILLRVIDEO_DSE_USERNAME
     dse_password=$KILLRVIDEO_DSE_PASSWORD
   fi
@@ -117,5 +120,3 @@ if [ ! -f killrvideo_bootstrapped ]; then
   echo '=> Configuration of DSE users and schema complete'
   touch killrvideo_bootstrapped
 fi
-
-sleep 10000

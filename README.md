@@ -5,31 +5,41 @@
 Docker container to configure a [DataStax Enterprise][dse] cluster for use with KillrVideo,
 including single and multi-node clusters, with options as described below. Contains startup 
 scripts to bootstrap the CQL and DSE Search resources needed by the [KillrVideo][killrvideo] 
-application. Based on the official [DSE image][dse-docker] from the Docker Store.
+application. It also registers the various services provided by DSE (Cassandra, Search and Graph) in
+<code>etcd</code> so they can be discovered by the various containers in the application.
+Based on the official [DSE image][dse-docker] from the Docker Store.
 
 ## Configuration Options
 
 This container supports several different options for configuration:
 
-### DSE Node location (required)
-The `KILLRVIDEO_DSE_IP` environment variable must be set in order to provide the location of at
-least one node in the cluster that the container will connect to in order to perform configuration.
+### DSE node location
+By default, this container assumes that DataStax Enterprise is being started in a Docker container
+as part of a <code>docker-compose</code> configuration. The value of the `KILLRVIDEO_DOCKER_IP` 
+environment variable is used to register DSE services in <code>etcd</code>. 
 
-- For a configuration in which DSE will be run in a Docker container along with this configuration
-container and other containers in the KillrVideo ecosystem, `KILLRVIDEO_DSE_IP` should be set to the
-name given for the container image, i.e. "dse". Docker will resolve this name to the correct IP.
-- For a configuration in which DSE is running separately from the Docker configuration, 
-`KILLRVIDEO_DSE_IP` should be set to the resolvable address of a node in the externally managed 
-cluster.
+If you instead wish to deploy KillrVideo with an existing external cluster, you can override this 
+behavior by setting the value of the `KILLRVIDEO_DSE_EXTERNAL_IP` environment variable to the location 
+of a node in the external cluster. (Don't forget to modify <code>docker-compose</code> files so that
+you don't continue to run DSE in Docker. See the [KillrVideo Docker documentation page][docker-doc] 
+for more information) 
 
-### Single-node vs multi-node clusters 
+### Configuring replication strategies 
 KillrVideo may require keyspaces to be created with different replication strategies depending
 on where it is deployed to use a single- or multi-node DSE cluster (i.e. for development vs. 
 production deployments). 
 
-- If the `KILLRVIDEO_MULTI_NODE_CLUSTER` environment variable is set to true, the replication
-strategy for KillrVideo related keyspaces will be set to X. Otherwise, keyspaces will have  
-be set to use the <code>SimpleStrategy</code> with replication factor of 1.
+- By default, this container will create KillrVideo keyspaces for DSE Database (Cassandra) 
+and DSE Graph using the <code>SimpleStrategy</code> with a replication factor of 1.
+- You can override the replication factor that will be used for the primary application Cassandra
+tables by setting the `KILLRVIDEO_CASSANDRA_REPLICATION` environment variable. Here's an example
+of how to set this variable in an <code>.env</code> file you use with <code>docker-compose</code>:
+```
+KILLRVIDEO_CASSANDRA_REPLICATION={'class' : 'NetworkTopologyStrategy', 'us-west-2-graph' : 3}
+```
+- Similarly, you can override the replication factor that will be used for the graph on which our 
+recommendation engine is implemented by setting the `KILLRVIDEO_GRAPH_REPLICATION` environment variable. 
+
 ### Enabling authentication and authorization
 This container can optionally create administrative and/or standard (application) roles:
 
@@ -60,3 +70,4 @@ version `1.0.0` uses DSE version `5.1.5`.
 [killrvideo]: https://killrvideo.github.io/
 [dse-docker]: https://store.docker.com/images/datastax
 [docker-hub]: https://hub.docker.com/r/killrvideo/killrvideo-dse/
+[docker-doc]: https://killrvideo.github.io/docs/guides/docker/

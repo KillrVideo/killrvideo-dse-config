@@ -1,5 +1,5 @@
 #!/bin/sh
-set -e
+set -x
 
 # Load the version number
 . "`dirname $0`/VERSION"

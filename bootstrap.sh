@@ -71,22 +71,7 @@ if [ ! -f killrvideo_bootstrapped ]; then
 
   # Create DSE Search core if necessary
   echo '=> Ensuring DSE Search is configured'
-  search_action='reload'
-    
-  # Check for config (dsetool will return a message like 'No resource solrconfig.xml found for core XXX' if not created yet)
-  cfg="$(dsetool -h $dse_ip get_core_config killrvideo.videos -l $admin_user -p $admin_password)"
-  if [[ $cfg == "No resource"* ]]; then
-    search_action='create'
-  fi
-
-  # Create or reload core
-  if [ "$search_action" = 'create' ]; then
-    echo '=> Creating search core'
-    dsetool -h $dse_ip create_core killrvideo.videos schema=/opt/killrvideo-data/videos.schema.xml solrconfig=/opt/killrvideo-data/videos.solrconfig.xml -l $admin_user -p $admin_password
-  else
-    echo '=> Reloading search core'
-    dsetool -h $dse_ip reload_core killrvideo.videos schema=/opt/killrvideo-data/videos.schema.xml solrconfig=/opt/killrvideo-data/videos.solrconfig.xml -l $admin_user -p $admin_password
-  fi
+  cqlsh $dse_ip 9042 -f /opt/killrvideo-data/videos_search.cql -k killrvideo -u $dse_user -p $dse_password
 
   # Wait for port 8182 (Gremlin) to be ready for up to 120 seconds
   echo '=> Waiting for DSE Graph to become available'

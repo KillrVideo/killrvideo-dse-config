@@ -17,7 +17,7 @@ if [ ! -f killrvideo_bootstrapped ]; then
 
   # Wait for port 9042 (CQL) to be ready for up to 240 seconds
   echo '=> Waiting for DSE to become available'
-  /wait-for-it.sh -t 120 $dse_ip:9042
+  /wait-for-it.sh -t 300 $dse_ip:9042
   echo '=> DSE is available'
 
   # Default privileges

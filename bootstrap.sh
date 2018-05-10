@@ -1,6 +1,8 @@
 #!/bin/bash
 set -e
 
+echo '===> DSE Configuration'
+
 # See if we've already completed bootstrapping
 if [ ! -f killrvideo_bootstrapped ]; then
 
@@ -13,11 +15,11 @@ if [ ! -f killrvideo_bootstrapped ]; then
     dse_ip=$KILLRVIDEO_DSE_EXTERNAL_IP
     dse_external_ip=$KILLRVIDEO_DSE_EXTERNAL_IP
   fi
-  echo "Setting up KillrVideo via DSE node at $dse_ip"
+  echo "=> Setting up KillrVideo via DSE node at: $dse_ip"
 
   # Wait for port 9042 (CQL) to be ready for up to 240 seconds
   echo '=> Waiting for DSE to become available'
-  /wait-for-it.sh -t 120 $dse_ip:9042
+  /wait-for-it.sh -t 300 $dse_ip:9042
   echo '=> DSE is available'
 
   # Default privileges
@@ -71,7 +73,11 @@ if [ ! -f killrvideo_bootstrapped ]; then
 
   # Create DSE Search core if necessary
   echo '=> Ensuring DSE Search is configured'
+  # TODO: temp workaround - if search index already exists, ALTER statements will cause non-zero exit
+  set +e 
   cqlsh $dse_ip 9042 -f /opt/killrvideo-data/videos_search.cql -k killrvideo -u $dse_user -p $dse_password
+  # TODO: remove workaround
+  set -e
 
   # Wait for port 8182 (Gremlin) to be ready for up to 120 seconds
   echo '=> Waiting for DSE Graph to become available'
@@ -107,4 +113,9 @@ if [ ! -f killrvideo_bootstrapped ]; then
   # Don't bootstrap next time we start
   echo '=> Configuration of DSE users and schema complete'
   touch killrvideo_bootstrapped
+
+else
+
+  echo '=> Configuration already completed, exiting'
+
 fi

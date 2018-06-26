@@ -17,6 +17,18 @@ if [ ! -f killrvideo_bootstrapped ]; then
   fi
   echo "=> Setting up KillrVideo via DSE node at: $dse_ip"
 
+  # If SSL is enabled, then provide SSL info
+  if [ "$KILLRVIDEO_ENABLE_SSL" = 'true' ]; then
+  	if [ ! -z "$KILLRVIDEO_SSL_CERTFILE" ]; then
+	  dse_ssl_certfile=$KILLRVIDEO_SSL_CERTFILE
+    	  dse_ssl='--ssl'
+	  export SSL_CERTFILE=$dse_ssl_certfile
+	  export SSL_VALIDATE=true
+
+  	  echo "=> SSL encryption is ENABLED with CERT FILE: $dse_ssl_certfile"
+  	fi
+  fi
+
   # Wait for port 9042 (CQL) to be ready for up to 240 seconds
   echo '=> Waiting for DSE to become available'
   /wait-for-it.sh -t 300 $dse_ip:9042
@@ -31,9 +43,9 @@ if [ ! -f killrvideo_bootstrapped ]; then
   # If requested, create a new superuser to replace the default superuser
   if [ "$KILLRVIDEO_CREATE_ADMIN_USER" = 'true' ]; then
     echo "=> Creating new superuser $KILLRVIDEO_ADMIN_USERNAME"
-    cqlsh $dse_ip 9042 -u $admin_user -p $admin_password -e "CREATE ROLE $KILLRVIDEO_ADMIN_USERNAME with SUPERUSER = true and LOGIN = true and PASSWORD = '$KILLRVIDEO_ADMIN_PASSWORD'"
+    cqlsh $dse_ip 9042 -u $admin_user -p $admin_password $dse_ssl -e "CREATE ROLE $KILLRVIDEO_ADMIN_USERNAME with SUPERUSER = true and LOGIN = true and PASSWORD = '$KILLRVIDEO_ADMIN_PASSWORD'"
     # Login as new superuser to delete default superuser (cassandra)
-    cqlsh $dse_ip 9042 -u $KILLRVIDEO_ADMIN_USERNAME -p $KILLRVIDEO_ADMIN_PASSWORD -e "DROP ROLE $admin_user"
+    cqlsh $dse_ip 9042 -u $KILLRVIDEO_ADMIN_USERNAME -p $dse_ssl $KILLRVIDEO_ADMIN_PASSWORD -e "DROP ROLE $admin_user"
   fi
 
   # Use new admin credentials for future actions
@@ -46,10 +58,10 @@ if [ ! -f killrvideo_bootstrapped ]; then
   if [ "$KILLRVIDEO_CREATE_DSE_USER" = 'true' ]; then
     # Create user and grant permission to create keyspaces (generator and web will need)
     echo "=> Creating user $KILLRVIDEO_DSE_USERNAME and granting keyspace creation permissions"
-    cqlsh $dse_ip 9042 -u $admin_user -p $admin_password -e "CREATE ROLE $KILLRVIDEO_DSE_USERNAME with LOGIN = true and PASSWORD = '$KILLRVIDEO_DSE_PASSWORD'"
+    cqlsh $dse_ip 9042 -u $admin_user -p $admin_password $dse_ssl -e "CREATE ROLE $KILLRVIDEO_DSE_USERNAME with LOGIN = true and PASSWORD = '$KILLRVIDEO_DSE_PASSWORD'"
     echo '=> Granting keyspace creation permissions'
-    cqlsh $dse_ip 9042 -u $admin_user -p $admin_password -e "GRANT CREATE on ALL KEYSPACES to $KILLRVIDEO_DSE_USERNAME"
-    cqlsh $dse_ip 9042 -u $admin_user -p $admin_password -e "GRANT ALL PERMISSIONS on ALL SEARCH INDICES to $KILLRVIDEO_DSE_USERNAME"
+    cqlsh $dse_ip 9042 -u $admin_user -p $admin_password $dse_ssl -e "GRANT CREATE on ALL KEYSPACES to $KILLRVIDEO_DSE_USERNAME"
+    cqlsh $dse_ip 9042 -u $admin_user -p $admin_password $dse_ssl -e "GRANT ALL PERMISSIONS on ALL SEARCH INDICES to $KILLRVIDEO_DSE_USERNAME"
   fi
 
   # Use the provided username/password for subsequent non-admin operations
@@ -65,17 +77,17 @@ if [ ! -f killrvideo_bootstrapped ]; then
     # TODO: check for valid replication format? https://stackoverflow.com/questions/21112707/check-if-a-string-matches-a-regex-in-bash-script
     sed -i "s/{.*}/$KILLRVIDEO_CASSANDRA_REPLICATION/;" $keyspace_file
   fi
-  cqlsh $dse_ip 9042 -f $keyspace_file -u $dse_user -p $dse_password
+  cqlsh $dse_ip 9042 -f $keyspace_file -u $dse_user -p $dse_password $dse_ssl
 
   # Create the schema if necessary
   echo '=> Ensuring schema is created'
-  cqlsh $dse_ip 9042 -f /opt/killrvideo-data/schema.cql -k killrvideo -u $dse_user -p $dse_password
+  cqlsh $dse_ip 9042 -f /opt/killrvideo-data/schema.cql -k killrvideo -u $dse_user -p $dse_password $dse_ssl
 
   # Create DSE Search core if necessary
   echo '=> Ensuring DSE Search is configured'
   # TODO: temp workaround - if search index already exists, ALTER statements will cause non-zero exit
   set +e 
-  cqlsh $dse_ip 9042 -f /opt/killrvideo-data/videos_search.cql -k killrvideo -u $dse_user -p $dse_password
+  cqlsh $dse_ip 9042 -f /opt/killrvideo-data/videos_search.cql -k killrvideo -u $dse_user -p $dse_password $dse_ssl
   # TODO: remove workaround
   set -e
 
@@ -87,7 +99,7 @@ if [ ! -f killrvideo_bootstrapped ]; then
   # Update the gremlin-console remote.yaml file to set the remote hosts, username, and password
   # This is required because the "dse gremlin-console" command does not accept username/password via command line
   echo '=> Setting up remote.yaml for gremlin-console'
-  sed -i "s/.*hosts:.*/hosts: [$dse_ip]/;s/.*username:.*/username: $dse_user/;s/.*password:.*/password: $dse_password/;" /opt/dse/resources/graph/gremlin-console/conf/remote.yaml
+  sed -i "s/.*hosts:.*/hosts: [$dse_ip]/;s/.*username:.*/username: $dse_user/;s/.*password:.*/password: $dse_password/;s|enableSsl:.*|enableSsl: true, trustCertChainFile: $dse_ssl_certfile,|;" /opt/dse/resources/graph/gremlin-console/conf/remote.yaml
 
   # Create the graph if necessary
   echo '=> Ensuring graph is created'

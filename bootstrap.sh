@@ -21,8 +21,7 @@ if [ ! -f killrvideo_bootstrapped ]; then
   # If a request timeout is available use that.  This is useful
   # in cases where a longer timeout is needed for cqlsh operations
   if [ ! -z "$KILLRVIDEO_DSE_REQUEST_TIMEOUT" ]; then
-    #dse_request_timeout="--request-timeout=$KILLRVIDEO_DSE_REQUEST_TIMEOUT"
-    dse_request_timeout="--connect-timeout=$KILLRVIDEO_DSE_REQUEST_TIMEOUT"
+    dse_request_timeout="--request-timeout=$KILLRVIDEO_DSE_REQUEST_TIMEOUT --connect-timeout=$KILLRVIDEO_DSE_REQUEST_TIMEOUT"
 
     echo "=> Request timeout set at: $dse_request_timeout"
   fi
@@ -94,6 +93,12 @@ if [ ! -f killrvideo_bootstrapped ]; then
     sed -i "s/{.*}/$KILLRVIDEO_CASSANDRA_REPLICATION/;" $keyspace_file
   fi
   cqlsh $dse_ip 9042 -f $keyspace_file -u $dse_user -p $dse_password $dse_ssl $dse_request_timeout
+
+  # Once we create the keyspace enable nodesync
+  # Commenting this out for now until we can get the correct
+  # documentation needed for using nodesync over SSL
+  #echo '=> Enabling NodeSync for KillrVideo keyspace'
+  #/opt/dse/resources/cassandra/bin/nodesync -cu $dse_user -cp $dse_password -h $dse_ip --cql-ssl enable -v -k killrvideo "*"
 
   # Create the schema if necessary
   echo '=> Ensuring schema is created'

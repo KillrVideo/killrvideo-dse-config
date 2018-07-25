@@ -94,6 +94,7 @@ if [ ! -f killrvideo_bootstrapped ]; then
   fi
   cqlsh $dse_ip 9042 -f $keyspace_file -u $dse_user -p $dse_password $dse_ssl $dse_request_timeout
 
+  # TODO: Complete nodesync section once documentation is available
   # Once we create the keyspace enable nodesync
   # Commenting this out for now until we can get the correct
   # documentation needed for using nodesync over SSL

@@ -60,7 +60,7 @@ if [ ! -f killrvideo_bootstrapped ]; then
     echo "=> Creating new superuser $KILLRVIDEO_ADMIN_USERNAME"
     cqlsh $dse_ip 9042 -u $admin_user -p $admin_password $dse_ssl $dse_request_timeout -e "CREATE ROLE $KILLRVIDEO_ADMIN_USERNAME with SUPERUSER = true and LOGIN = true and PASSWORD = '$KILLRVIDEO_ADMIN_PASSWORD'"
     # Login as new superuser to delete default superuser (cassandra)
-    cqlsh $dse_ip 9042 -u $KILLRVIDEO_ADMIN_USERNAME -p $dse_ssl $dse_request_timeout $KILLRVIDEO_ADMIN_PASSWORD -e "DROP ROLE $admin_user"
+    cqlsh $dse_ip 9042 -u $KILLRVIDEO_ADMIN_USERNAME -p $KILLRVIDEO_ADMIN_PASSWORD $dse_ssl $dse_request_timeout -e "DROP ROLE $admin_user"
   fi
 
   # Use new admin credentials for future actions

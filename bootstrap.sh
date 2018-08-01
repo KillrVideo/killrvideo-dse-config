@@ -11,6 +11,12 @@ if [ ! -f killrvideo_bootstrapped ]; then
   dse_external_ip=$KILLRVIDEO_DOCKER_IP
   dse_enable_ssl='false'
 
+  # Create cql_options variable to consolidate multiple options into one
+  # variable for easier reading
+  cql_options=''
+  # Use space variable to concatenate options
+  space=' '
+
   # If an external cluster address is provided, use that
   if [ ! -z "$KILLRVIDEO_DSE_EXTERNAL_IP" ]; then
     dse_ip=$KILLRVIDEO_DSE_EXTERNAL_IP
@@ -22,6 +28,7 @@ if [ ! -f killrvideo_bootstrapped ]; then
   # in cases where a longer timeout is needed for cqlsh operations
   if [ ! -z "$KILLRVIDEO_DSE_REQUEST_TIMEOUT" ]; then
     dse_request_timeout="--request-timeout=$KILLRVIDEO_DSE_REQUEST_TIMEOUT --connect-timeout=$KILLRVIDEO_DSE_REQUEST_TIMEOUT"
+    cql_options="$dse_request_timeout"
 
     echo "=> Request timeout set at: $dse_request_timeout"
   fi
@@ -35,6 +42,7 @@ if [ ! -f killrvideo_bootstrapped ]; then
 	# in the killrvideo-docker-common repo 
   	dse_ssl_certfile='/opt/killrvideo-data/cassandra.cert'
     	dse_ssl='--ssl'
+        cql_options="$cql_options$space$dse_ssl"
 
 	# These 2 environment variables are needed for cqlsh to 
 	# properly handle SSL
@@ -48,6 +56,7 @@ if [ ! -f killrvideo_bootstrapped ]; then
   echo '=> Waiting for DSE to become available'
   /wait-for-it.sh -t 300 $dse_ip:9042
   echo '=> DSE is available'
+  echo "=> If any exist, cql_options are: $cql_options"
 
   # Default privileges
   admin_user='cassandra'
@@ -58,9 +67,9 @@ if [ ! -f killrvideo_bootstrapped ]; then
   # If requested, create a new superuser to replace the default superuser
   if [ "$KILLRVIDEO_CREATE_ADMIN_USER" = 'true' ]; then
     echo "=> Creating new superuser $KILLRVIDEO_ADMIN_USERNAME"
-    cqlsh $dse_ip 9042 -u $admin_user -p $admin_password $dse_ssl $dse_request_timeout -e "CREATE ROLE $KILLRVIDEO_ADMIN_USERNAME with SUPERUSER = true and LOGIN = true and PASSWORD = '$KILLRVIDEO_ADMIN_PASSWORD'"
+    cqlsh $dse_ip 9042 -u $admin_user -p $admin_password $cql_options -e "CREATE ROLE $KILLRVIDEO_ADMIN_USERNAME with SUPERUSER = true and LOGIN = true and PASSWORD = '$KILLRVIDEO_ADMIN_PASSWORD'"
     # Login as new superuser to delete default superuser (cassandra)
-    cqlsh $dse_ip 9042 -u $KILLRVIDEO_ADMIN_USERNAME -p $KILLRVIDEO_ADMIN_PASSWORD $dse_ssl $dse_request_timeout -e "DROP ROLE $admin_user"
+    cqlsh $dse_ip 9042 -u $KILLRVIDEO_ADMIN_USERNAME -p $KILLRVIDEO_ADMIN_PASSWORD $cql_options -e "DROP ROLE $admin_user"
   fi
 
   # Use new admin credentials for future actions
@@ -73,10 +82,10 @@ if [ ! -f killrvideo_bootstrapped ]; then
   if [ "$KILLRVIDEO_CREATE_DSE_USER" = 'true' ]; then
     # Create user and grant permission to create keyspaces (generator and web will need)
     echo "=> Creating user $KILLRVIDEO_DSE_USERNAME and granting keyspace creation permissions"
-    cqlsh $dse_ip 9042 -u $admin_user -p $admin_password $dse_ssl $dse_request_timeout -e "CREATE ROLE $KILLRVIDEO_DSE_USERNAME with LOGIN = true and PASSWORD = '$KILLRVIDEO_DSE_PASSWORD'"
+    cqlsh $dse_ip 9042 -u $admin_user -p $admin_password $cql_options -e "CREATE ROLE $KILLRVIDEO_DSE_USERNAME with LOGIN = true and PASSWORD = '$KILLRVIDEO_DSE_PASSWORD'"
     echo '=> Granting keyspace creation permissions'
-    cqlsh $dse_ip 9042 -u $admin_user -p $admin_password $dse_ssl $dse_request_timeout -e "GRANT CREATE on ALL KEYSPACES to $KILLRVIDEO_DSE_USERNAME"
-    cqlsh $dse_ip 9042 -u $admin_user -p $admin_password $dse_ssl $dse_request_timeout -e "GRANT ALL PERMISSIONS on ALL SEARCH INDICES to $KILLRVIDEO_DSE_USERNAME"
+    cqlsh $dse_ip 9042 -u $admin_user -p $admin_password $cql_options -e "GRANT CREATE on ALL KEYSPACES to $KILLRVIDEO_DSE_USERNAME"
+    cqlsh $dse_ip 9042 -u $admin_user -p $admin_password $cql_options -e "GRANT ALL PERMISSIONS on ALL SEARCH INDICES to $KILLRVIDEO_DSE_USERNAME"
   fi
 
   # Use the provided username/password for subsequent non-admin operations
@@ -92,7 +101,7 @@ if [ ! -f killrvideo_bootstrapped ]; then
     # TODO: check for valid replication format? https://stackoverflow.com/questions/21112707/check-if-a-string-matches-a-regex-in-bash-script
     sed -i "s/{.*}/$KILLRVIDEO_CASSANDRA_REPLICATION/;" $keyspace_file
   fi
-  cqlsh $dse_ip 9042 -f $keyspace_file -u $dse_user -p $dse_password $dse_ssl $dse_request_timeout
+  cqlsh $dse_ip 9042 -f $keyspace_file -u $dse_user -p $dse_password $cql_options
 
   # TODO: Complete nodesync section once documentation is available
   # Once we create the keyspace enable nodesync
@@ -103,13 +112,13 @@ if [ ! -f killrvideo_bootstrapped ]; then
 
   # Create the schema if necessary
   echo '=> Ensuring schema is created'
-  cqlsh $dse_ip 9042 -f /opt/killrvideo-data/schema.cql -k killrvideo -u $dse_user -p $dse_password $dse_ssl $dse_request_timeout
+  cqlsh $dse_ip 9042 -f /opt/killrvideo-data/schema.cql -k killrvideo -u $dse_user -p $dse_password $cql_options
 
   # Create DSE Search core if necessary
   echo '=> Ensuring DSE Search is configured'
   # TODO: temp workaround - if search index already exists, ALTER statements will cause non-zero exit
   set +e 
-  cqlsh $dse_ip 9042 -f /opt/killrvideo-data/videos_search.cql -k killrvideo -u $dse_user -p $dse_password $dse_ssl $dse_request_timeout
+  cqlsh $dse_ip 9042 -f /opt/killrvideo-data/videos_search.cql -k killrvideo -u $dse_user -p $dse_password $cql_options
   # TODO: remove workaround
   set -e
 

@@ -145,14 +145,18 @@ dse gremlin-console -e $graph_file
 # internally and externally to the Docker environment
 hostname="$(hostname)"
 
-echo '=> Registering DSE DB (Cassandra) cluster in ETCD'
-curl "http://etcd:2379/v2/keys/killrvideo/services/cassandra/$hostname" -XPUT -d value="$dse_external_ip:9042"
+if [ ! -z "$KILLRVIDEO_SERVICE_DISCOVERY_DISABLED" ]; then
+  echo '=> Skipping registration in ETCD as service discovery is disabled'
+else
+  echo '=> Registering DSE DB (Cassandra) cluster in ETCD'
+  curl "http://etcd:2379/v2/keys/killrvideo/services/cassandra/$hostname" -XPUT -d value="$dse_external_ip:9042"
 
-echo '=> Registering DSE Search in ETCD'
-curl "http://etcd:2379/v2/keys/killrvideo/services/dse-search/$hostname" -XPUT -d value="$dse_external_ip:8983"
+  echo '=> Registering DSE Search in ETCD'
+  curl "http://etcd:2379/v2/keys/killrvideo/services/dse-search/$hostname" -XPUT -d value="$dse_external_ip:8983"
 
-echo '=> Registering DSE Graph in ETCD'
-curl "http://etcd:2379/v2/keys/killrvideo/services/gremlin/$hostname" -XPUT -d value="$dse_external_ip:8182"
+  echo '=> Registering DSE Graph in ETCD'
+  curl "http://etcd:2379/v2/keys/killrvideo/services/gremlin/$hostname" -XPUT -d value="$dse_external_ip:8182"
+fi
 
 # Don't bootstrap next time we start
 echo '=> Configuration of DSE users and schema complete'

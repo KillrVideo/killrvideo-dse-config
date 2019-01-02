@@ -6,6 +6,7 @@ echo '===> DSE Configuration'
 # See if we've already completed bootstrapping
 if [ -f killrvideo_bootstrapped ]; then
   echo '=> Configuration already completed, exiting'
+  
 fi
 
 # Default addresses to use for DSE cluster if starting in Docker

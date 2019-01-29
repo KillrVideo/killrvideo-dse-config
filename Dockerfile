@@ -1,4 +1,4 @@
-FROM datastax/dse-server:6.0.2
+FROM datastax/dse-server:6.7.0
 
 # Copy schema files into /opt/killrvideo-data
 COPY [ "lib/killrvideo-data/graph/killrvideo_video_recommendations_schema.groovy", "lib/killrvideo-data/schema.cql", "lib/killrvideo-data/search/*", "keyspace.cql", "/opt/killrvideo-data/" ]

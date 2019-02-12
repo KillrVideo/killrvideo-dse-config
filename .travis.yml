@@ -1,3 +1,5 @@
+language: generic
+
 # Sudo required for doing docker build
 sudo: required
 services:
@@ -5,11 +7,14 @@ services:
 
 # Build the docker image
 script:
-- ./build/docker-build.sh
+- docker build -t ${TRAVIS_COMMIT} .
 
 # If successful, see if we need to publish also
 after_success:
-- ./build/travis-publish.sh
+- test -z $TRAVIS_TAG && travis_terminate 0
+- docker tag ${TRAVIS_COMMIT} killrvideo/killrvideo-dse-config:${TRAVIS_TAG}
+- docker login -u $DOCKER_USER -p $DOCKER_PASS
+- docker push killrvideo/killrvideo-dse-config:${TRAVIS_TAG}
 
 # Environment variables needed when publishing
 env:

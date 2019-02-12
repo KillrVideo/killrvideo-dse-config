@@ -3,12 +3,6 @@ set -e
 
 echo '===> DSE Configuration'
 
-# See if we've already completed bootstrapping
-if [ -f killrvideo_bootstrapped ]; then
-  echo '=> Configuration already completed, exiting'
-  exit 0
-fi
-
 # Default addresses to use for DSE cluster if starting in Docker
 dse_ip='dse'
 dse_external_ip=$KILLRVIDEO_DOCKER_IP
@@ -54,7 +48,7 @@ if [ "$KILLRVIDEO_ENABLE_SSL" = 'true' ]; then
   echo "=> SSL encryption is ENABLED with CERT FILE: $dse_ssl_certfile"
 fi
 
-# Wait for port 9042 (CQL) to be ready for up to 240 seconds
+# Wait for port 9042 (CQL) to be ready for up to 300 seconds
 echo '=> Waiting for DSE to become available'
 /wait-for-it.sh -t 300 $dse_ip:9042
 echo '=> DSE is available'
@@ -68,6 +62,12 @@ dse_password='cassandra'
 
 # If requested, create a new superuser to replace the default superuser
 if [ "$KILLRVIDEO_CREATE_ADMIN_USER" = 'true' ]; then
+  # Check if initialisation is done already
+  if [ cqlsh $dse_ip 9042 -u $admin_user -p $admin_password $cql_options -e "DESCRIBE KEYSPACE kv_init_done;" 2>&1 | grep -q 'CREATE KEYSPACE kv_init_done' ]; then
+    echo "The database is already initialised, exiting..."
+    exit 0
+  fi
+
   echo "=> Creating new superuser $KILLRVIDEO_ADMIN_USERNAME"
   cqlsh $dse_ip 9042 -u $admin_user -p $admin_password $cql_options -e "CREATE ROLE $KILLRVIDEO_ADMIN_USERNAME with SUPERUSER = true and LOGIN = true and PASSWORD = '$KILLRVIDEO_ADMIN_PASSWORD'"
   # Login as new superuser to delete default superuser (cassandra)
@@ -78,6 +78,15 @@ fi
 if [ ! -z "$KILLRVIDEO_ADMIN_USERNAME" ]; then
   admin_user=$KILLRVIDEO_ADMIN_USERNAME
   admin_password=$KILLRVIDEO_ADMIN_PASSWORD
+fi
+
+if cqlsh $dse_ip 9042 -u $admin_user -p $admin_password $cql_options -e "DESCRIBE KEYSPACE kv_init_done;" 2>&1 | grep -q 'CREATE KEYSPACE kv_init_done'; then
+  if [ ! -z "$KILLRVIDEO_FORCE_BOOTSTRAP" ]; then
+    echo '=> Forced bootstrap!'
+  else 
+    echo "The database is already initialised, exiting..."
+    exit 0
+  fi
 fi
 
 # If requested, create a new standard user
@@ -142,23 +151,7 @@ if [ ! -z "$KILLRVIDEO_GRAPH_REPLICATION" ]; then
 fi
 dse gremlin-console -e $graph_file
 
-# Register services in ETCD once all the schema are configured, using an IP that will be accessible
-# internally and externally to the Docker environment
-hostname="$(hostname)"
-
-if [ ! -z "$KILLRVIDEO_SERVICE_DISCOVERY_DISABLED" ]; then
-  echo '=> Skipping registration in ETCD as service discovery is disabled'
-else
-  echo '=> Registering DSE DB (Cassandra) cluster in ETCD'
-  curl "http://etcd:2379/v2/keys/killrvideo/services/cassandra/$hostname" -XPUT -d value="$dse_external_ip:9042"
-
-  echo '=> Registering DSE Search in ETCD'
-  curl "http://etcd:2379/v2/keys/killrvideo/services/dse-search/$hostname" -XPUT -d value="$dse_external_ip:8983"
-
-  echo '=> Registering DSE Graph in ETCD'
-  curl "http://etcd:2379/v2/keys/killrvideo/services/gremlin/$hostname" -XPUT -d value="$dse_external_ip:8182"
-fi
+echo '=> Configuration of DSE users and schema complete'
 
 # Don't bootstrap next time we start
-echo '=> Configuration of DSE users and schema complete'
-touch killrvideo_bootstrapped
+cqlsh $dse_ip 9042 -u $dse_user -p $dse_password $cql_options -e "CREATE KEYSPACE IF NOT EXISTS kv_init_done WITH REPLICATION = {'class': 'SimpleStrategy', 'replication_factor': 1};"

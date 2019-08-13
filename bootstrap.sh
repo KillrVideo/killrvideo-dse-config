@@ -15,9 +15,9 @@ cql_options=''
 space=' '
 
 # If an external cluster address is provided, use that
-if [ ! -z "$KILLRVIDEO_DSE_EXTERNAL_IP" ]; then
-  dse_ip=$KILLRVIDEO_DSE_EXTERNAL_IP
-  dse_external_ip=$KILLRVIDEO_DSE_EXTERNAL_IP
+if [ ! -z "$KILLRVIDEO_DSE_CONTACT_POINTS" ]; then
+  dse_ip=$KILLRVIDEO_DSE_CONTACT_POINTS
+  dse_external_ip=$KILLRVIDEO_DSE_CONTACT_POINTS
 fi
 echo "=> Setting up KillrVideo via DSE node at: $dse_ip"
 

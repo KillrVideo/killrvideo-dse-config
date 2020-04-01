@@ -5,9 +5,7 @@
 Docker container to configure a [DataStax Enterprise][dse] cluster for use with KillrVideo,
 including single and multi-node clusters, with options as described below. Contains startup 
 scripts to bootstrap the CQL and DSE Search resources needed by the [KillrVideo][killrvideo] 
-application. It also registers the various services provided by DSE (Cassandra, Search and Graph) in
-`etcd` so they can be discovered by the various containers in the application.
-Based on the official [DSE image][dse-docker] from the Docker Store.
+application. Based on the official [DSE image][dse-docker] from the Docker Store.
 
 ## Configuration Options
 
@@ -17,8 +15,8 @@ This container supports several different options for configuration:
 By default, this container assumes that DataStax Enterprise is being started in a Docker container
 as part of a `docker-compose` configuration.
 
-If you instead wish to deploy KillrVideo with an existing external cluster, you can override this 
-behavior by setting the value of the `KILLRVIDEO_DSE_EXTERNAL_IP` environment variable to the location 
+If you instead wish to deploy KillrVideo with an existing cluster, you can override this 
+behavior by setting the value of the `KILLRVIDEO_DSE_CONTACT_POINTS` environment variable to the location 
 of a node in the external cluster. (Don't forget to modify `docker-compose` files so that
 you don't continue to run DSE in Docker. See the [KillrVideo Docker documentation page][docker-doc] 
 for more information.) 
